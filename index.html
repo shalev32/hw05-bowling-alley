@@ -3,13 +3,608 @@
 	<head>
 		<meta charset="utf-8">
 		<title>HW5 - Bowling Alley</title>
+		<!-- Google Fonts for premium typography -->
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+		
 		<style>
-			body { margin: 0; }
+			/* Reset and base styles */
+			body { 
+				margin: 0; 
+				overflow: hidden;
+				background: #090d16;
+				font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+				color: #f8fafc;
+				-webkit-font-smoothing: antialiased;
+				user-select: none;
+			}
+			
+			/* UI overlay container */
+			#ui-layer {
+				position: absolute;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
+				box-sizing: border-box;
+				padding: 24px;
+				pointer-events: none; /* Let canvas capture mouse events for OrbitControls */
+				display: flex;
+				flex-direction: column;
+				justify-content: space-between;
+				z-index: 100;
+			}
+			
+			.interactive {
+				pointer-events: auto; /* Let clicks work on UI cards */
+			}
+			
+			/* Glassmorphism panels styling */
+			.glass-panel {
+				background: rgba(15, 23, 42, 0.45);
+				backdrop-filter: blur(12px);
+				-webkit-backdrop-filter: blur(12px);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+				border-radius: 16px;
+				transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+			}
+			
+			.glass-panel:hover {
+				border-color: rgba(255, 255, 255, 0.15);
+				box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.5);
+				background: rgba(15, 23, 42, 0.55);
+			}
+			
+			/* Scorecard Layout */
+			.scorecard-wrapper {
+				align-self: center;
+				width: 100%;
+				max-width: 1000px;
+				margin-top: 10px;
+			}
+			
+			.scorecard-panel {
+				padding: 16px 20px;
+				display: flex;
+				flex-direction: column;
+				gap: 12px;
+			}
+			
+			.scorecard-header {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+				padding-bottom: 8px;
+			}
+			
+			.scorecard-brand {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+			}
+			
+			.brand-dot {
+				width: 8px;
+				height: 8px;
+				background-color: #ef4444; /* Neon red */
+				border-radius: 50%;
+				box-shadow: 0 0 8px #ef4444;
+				animation: pulse 2s infinite;
+			}
+			
+			@keyframes pulse {
+				0%, 100% { opacity: 0.6; }
+				50% { opacity: 1; }
+			}
+			
+			.scorecard-title {
+				font-family: 'Orbitron', sans-serif;
+				font-size: 14px;
+				font-weight: 800;
+				letter-spacing: 2px;
+				color: #f8fafc;
+				text-transform: uppercase;
+			}
+			
+			.scorecard-meta {
+				display: flex;
+				gap: 20px;
+				font-size: 12px;
+				color: #94a3b8;
+			}
+			
+			.scorecard-meta span strong {
+				color: #ef4444;
+			}
+			
+			.scorecard-grid {
+				display: grid;
+				grid-template-columns: repeat(10, 1fr) 95px;
+				gap: 8px;
+			}
+			
+			.frame-box {
+				background: rgba(15, 23, 42, 0.3);
+				border: 1px solid rgba(255, 255, 255, 0.05);
+				border-radius: 8px;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+			}
+			
+			.frame-header {
+				background: rgba(255, 255, 255, 0.06);
+				font-size: 10px;
+				font-weight: 700;
+				text-align: center;
+				padding: 6px 0;
+				color: #94a3b8;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+				letter-spacing: 1px;
+			}
+			
+			.rolls-container {
+				display: flex;
+				height: 28px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			
+			.roll-box {
+				flex: 1;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: 'Orbitron', monospace;
+				font-size: 13px;
+				font-weight: 700;
+				color: #f1f5f9;
+			}
+			
+			.roll-box:not(:last-child) {
+				border-right: 1px solid rgba(255, 255, 255, 0.05);
+			}
+			
+			/* 10th frame has three rolls */
+			.frame-box:nth-child(10) .roll-box {
+				font-size: 12px;
+			}
+			
+			.cumulative-score {
+				height: 38px;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: 'Orbitron', monospace;
+				font-size: 18px;
+				font-weight: 700;
+				color: #38bdf8;
+				text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+			}
+			
+			/* Total Box Styling */
+			.total-box {
+				background: rgba(56, 189, 248, 0.1);
+				border: 1px solid rgba(56, 189, 248, 0.25);
+				border-radius: 8px;
+				display: flex;
+				flex-direction: column;
+				overflow: hidden;
+				box-shadow: inset 0 0 16px rgba(56, 189, 248, 0.05);
+			}
+			
+			.total-header {
+				background: rgba(56, 189, 248, 0.18);
+				font-size: 10px;
+				font-weight: 800;
+				text-align: center;
+				padding: 6px 0;
+				color: #38bdf8;
+				text-transform: uppercase;
+				letter-spacing: 1.5px;
+				border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+			}
+			
+			.total-score {
+				flex: 1;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				font-family: 'Orbitron', monospace;
+				font-size: 26px;
+				font-weight: 900;
+				color: #38bdf8;
+				text-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+			}
+			
+			/* Bottom elements */
+			.bottom-container {
+				display: flex;
+				justify-content: space-between;
+				align-items: flex-end;
+				width: 100%;
+			}
+			
+			.controls-panel {
+				padding: 20px;
+				width: 320px;
+			}
+			
+			.controls-header {
+				font-family: 'Orbitron', sans-serif;
+				font-size: 12px;
+				font-weight: 700;
+				letter-spacing: 2px;
+				text-transform: uppercase;
+				color: #94a3b8;
+				margin-bottom: 14px;
+				border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+				padding-bottom: 8px;
+			}
+			
+			.control-item {
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-bottom: 10px;
+				font-size: 13px;
+				color: #cbd5e1;
+				transition: color 0.2s ease;
+			}
+			
+			.control-item:last-child {
+				margin-bottom: 0;
+			}
+			
+			.key-badge {
+				background: rgba(255, 255, 255, 0.08);
+				border: 1px solid rgba(255, 255, 255, 0.15);
+				border-radius: 6px;
+				padding: 4px 10px;
+				font-family: 'Orbitron', monospace;
+				font-size: 11px;
+				font-weight: 700;
+				color: #38bdf8;
+				box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+				min-width: 16px;
+				text-align: center;
+				transition: all 0.2s ease;
+			}
+			
+			/* Interactive key states */
+			.control-item.active {
+				color: #ef4444;
+				font-weight: 600;
+			}
+			
+			.control-item.active .key-badge {
+				background: rgba(239, 68, 68, 0.2);
+				border-color: rgba(239, 68, 68, 0.4);
+				color: #ef4444;
+				box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+			}
+			
+			/* Active Camera Status Panel */
+			.status-panel {
+				padding: 16px 20px;
+				width: 260px;
+				text-align: right;
+				display: flex;
+				flex-direction: column;
+				gap: 4px;
+			}
+			
+			.status-header {
+				font-family: 'Orbitron', sans-serif;
+				font-size: 10px;
+				font-weight: 700;
+				letter-spacing: 1.5px;
+				text-transform: uppercase;
+				color: #94a3b8;
+			}
+			
+			.status-value {
+				font-family: 'Orbitron', sans-serif;
+				font-size: 18px;
+				font-weight: 800;
+				color: #38bdf8;
+				text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+				margin: 2px 0;
+				transition: all 0.3s ease;
+			}
+			
+			.status-value.orbit {
+				color: #38bdf8;
+				text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+			}
+			
+			.status-value.preset {
+				color: #ef4444;
+				text-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+			}
+			
+			.status-desc {
+				font-size: 11px;
+				color: #64748b;
+				font-style: italic;
+			}
+			
+			/* Responsive adjustments */
+			@media (max-width: 900px) {
+				.scorecard-grid {
+					grid-template-columns: repeat(5, 1fr);
+					gap: 6px;
+				}
+				.total-box {
+					grid-column: span 5;
+				}
+				.scorecard-wrapper {
+					max-width: 500px;
+				}
+				.bottom-container {
+					flex-direction: column;
+					align-items: stretch;
+					gap: 16px;
+				}
+				.controls-panel, .status-panel {
+					width: auto;
+					text-align: left;
+				}
+				.status-panel {
+					align-items: flex-start;
+				}
+			}
 		</style>
+		
 		<script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
 	</head>
+	
 	<body>
+		<!-- Premium UI HUD Overlay -->
+		<div id="ui-layer">
+			<!-- Top Scorecard Area -->
+			<div class="scorecard-wrapper interactive">
+				<div class="scorecard-panel glass-panel">
+					<div class="scorecard-header">
+						<div class="scorecard-brand">
+							<div class="brand-dot"></div>
+							<div class="scorecard-title">Hyperion Lanes</div>
+						</div>
+						<div class="scorecard-meta">
+							<span>Bowler: <strong>Shalev Ohayon</strong></span>
+							<span>Game: <strong>#12</strong></span>
+							<span>Status: <strong>Live Match</strong></span>
+						</div>
+					</div>
+					
+					<div class="scorecard-grid">
+						<!-- Frame 1: Spare (17) -->
+						<div class="frame-box">
+							<div class="frame-header">F1</div>
+							<div class="rolls-container">
+								<div class="roll-box">9</div>
+								<div class="roll-box">/</div>
+							</div>
+							<div class="cumulative-score">17</div>
+						</div>
+						
+						<!-- Frame 2: Open (26) -->
+						<div class="frame-box">
+							<div class="frame-header">F2</div>
+							<div class="rolls-container">
+								<div class="roll-box">7</div>
+								<div class="roll-box">2</div>
+							</div>
+							<div class="cumulative-score">26</div>
+						</div>
+						
+						<!-- Frame 3: Strike (56) -->
+						<div class="frame-box">
+							<div class="frame-header">F3</div>
+							<div class="rolls-container">
+								<div class="roll-box">X</div>
+								<div class="roll-box">&nbsp;</div>
+							</div>
+							<div class="cumulative-score">56</div>
+						</div>
+						
+						<!-- Frame 4: Strike (84) -->
+						<div class="frame-box">
+							<div class="frame-header">F4</div>
+							<div class="rolls-container">
+								<div class="roll-box">X</div>
+								<div class="roll-box">&nbsp;</div>
+							</div>
+							<div class="cumulative-score">84</div>
+						</div>
+						
+						<!-- Frame 5: Strike (102) -->
+						<div class="frame-box">
+							<div class="frame-header">F5</div>
+							<div class="rolls-container">
+								<div class="roll-box">X</div>
+								<div class="roll-box">&nbsp;</div>
+							</div>
+							<div class="cumulative-score">102</div>
+						</div>
+						
+						<!-- Frame 6: Open (110) -->
+						<div class="frame-box">
+							<div class="frame-header">F6</div>
+							<div class="rolls-container">
+								<div class="roll-box">8</div>
+								<div class="roll-box">-</div>
+							</div>
+							<div class="cumulative-score">110</div>
+						</div>
+						
+						<!-- Frame 7: Spare (130) -->
+						<div class="frame-box">
+							<div class="frame-header">F7</div>
+							<div class="rolls-container">
+								<div class="roll-box">9</div>
+								<div class="roll-box">/</div>
+							</div>
+							<div class="cumulative-score">130</div>
+						</div>
+						
+						<!-- Frame 8: Strike (149) -->
+						<div class="frame-box">
+							<div class="frame-header">F8</div>
+							<div class="rolls-container">
+								<div class="roll-box">X</div>
+								<div class="roll-box">&nbsp;</div>
+							</div>
+							<div class="cumulative-score">149</div>
+						</div>
+						
+						<!-- Frame 9: Open (158) -->
+						<div class="frame-box">
+							<div class="frame-header">F9</div>
+							<div class="rolls-container">
+								<div class="roll-box">9</div>
+								<div class="roll-box">-</div>
+							</div>
+							<div class="cumulative-score">158</div>
+						</div>
+						
+						<!-- Frame 10: Finished with Strike and Spare (178) -->
+						<div class="frame-box">
+							<div class="frame-header">F10</div>
+							<div class="rolls-container">
+								<div class="roll-box">X</div>
+								<div class="roll-box">9</div>
+								<div class="roll-box">/</div>
+							</div>
+							<div class="cumulative-score">178</div>
+						</div>
+						
+						<!-- Total Score Column -->
+						<div class="total-box">
+							<div class="total-header">Total</div>
+							<div class="total-score">178</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Bottom HUD Controls & State Panel -->
+			<div class="bottom-container">
+				<!-- Controls Panel (Left) -->
+				<div class="controls-panel glass-panel interactive">
+					<div class="controls-header">Controls</div>
+					<div class="control-item" id="ctrl-o">
+						<span>Toggle Orbit Camera</span>
+						<span class="key-badge">O</span>
+					</div>
+					<div class="control-item" id="ctrl-1">
+						<span>Bowler Camera</span>
+						<span class="key-badge">1</span>
+					</div>
+					<div class="control-item" id="ctrl-2">
+						<span>Pin Close-up</span>
+						<span class="key-badge">2</span>
+					</div>
+					<div class="control-item" id="ctrl-3">
+						<span>Overhead View</span>
+						<span class="key-badge">3</span>
+					</div>
+					<div class="control-item" id="ctrl-4">
+						<span>Side View</span>
+						<span class="key-badge">4</span>
+					</div>
+				</div>
+				
+				<!-- Camera Status (Right) -->
+				<div class="status-panel glass-panel interactive">
+					<div class="status-header">Camera State</div>
+					<div class="status-value orbit" id="current-camera">Orbit View</div>
+					<div class="status-desc">Click & drag to explore lane</div>
+				</div>
+			</div>
+		</div>
+		
+		<!-- UI State Controller Script -->
+		<script>
+			document.addEventListener('DOMContentLoaded', () => {
+				const cameraEl = document.getElementById('current-camera');
+				const descEl = document.querySelector('.status-desc');
+				
+				// Helper to set active camera UI
+				function setActiveCamera(key, name, desc, isOrbit = false) {
+					if (cameraEl) {
+						cameraEl.textContent = name;
+						if (isOrbit) {
+							cameraEl.className = 'status-value orbit';
+						} else {
+							cameraEl.className = 'status-value preset';
+						}
+					}
+					if (descEl) descEl.textContent = desc;
+					
+					// Remove active class from all items
+					document.querySelectorAll('.control-item').forEach(item => {
+						item.classList.remove('active');
+					});
+					
+					// Add active class to corresponding control item
+					const activeItem = document.getElementById(`ctrl-${key.toLowerCase()}`);
+					if (activeItem) {
+						activeItem.classList.add('active');
+					}
+				}
+				
+				// Set default active (Orbit View on launch)
+				let orbitActive = true;
+				const hash = window.location.hash;
+				if (hash === '#preset=1') {
+					setActiveCamera('1', 'Bowler View', 'Perspective from behind the foul line');
+					orbitActive = false;
+				} else if (hash === '#preset=2') {
+					setActiveCamera('2', 'Pin Close-up', 'Focusing on the triangular pin deck');
+					orbitActive = false;
+				} else if (hash === '#preset=3') {
+					setActiveCamera('3', 'Overhead View', 'Top-down bird\'s eye perspective');
+					orbitActive = false;
+				} else if (hash === '#preset=4') {
+					setActiveCamera('4', 'Side View', 'Profile perspective of the bowling lane');
+					orbitActive = false;
+				} else if (hash === '#preset=ball') {
+					setActiveCamera('1', 'Ball Close-up', 'Focusing on the glossy bowling ball');
+					orbitActive = false;
+				} else {
+					setActiveCamera('o', 'Orbit View', 'Click & drag to explore lane', true);
+				}
+				
+				document.addEventListener('keydown', (e) => {
+					const key = e.key.toLowerCase();
+					if (key === 'o') {
+						orbitActive = !orbitActive;
+						if (orbitActive) {
+							setActiveCamera('o', 'Orbit View', 'Click & drag to explore lane', true);
+						} else {
+							setActiveCamera('o', 'Free Orbit Locked', 'Controls disabled', true);
+						}
+					} else if (key === '1') {
+						orbitActive = false; // Presets override or lock orbit
+						setActiveCamera('1', 'Bowler View', 'Perspective from behind the foul line');
+					} else if (key === '2') {
+						orbitActive = false;
+						setActiveCamera('2', 'Pin Close-up', 'Focusing on the triangular pin deck');
+					} else if (key === '3') {
+						orbitActive = false;
+						setActiveCamera('3', 'Overhead View', 'Top-down bird\'s eye perspective');
+					} else if (key === '4') {
+						orbitActive = false;
+						setActiveCamera('4', 'Side View', 'Profile perspective of the bowling lane');
+					}
+				});
+			});
+		</script>
+		
+		<!-- Three.js entry script -->
 		<script src="src/hw5.js" type="module"></script>
-
 	</body>
 </html>

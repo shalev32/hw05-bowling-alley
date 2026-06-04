@@ -1,89 +1,155 @@
-import {OrbitControls} from './OrbitControls.js'
+import {OrbitControls} from './OrbitControls.js';
+import {
+  createLane,
+  createApproach,
+  createMarkings,
+  createGuttersAndBumpers,
+  createBallReturn,
+  createSeatingArea
+} from './lane.js';
+import {
+  createBowlingBall,
+  setupPins,
+  createOverheadMonitor,
+  setupCameraPresets
+} from './objects.js';
 
+// Setup Three.js Scene and Camera
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
+// Setup WebGL Renderer with antialiasing
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-// Set background color
-scene.background = new THREE.Color(0x1a1a2e);
 
-// Add lights to the scene
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+// Set deep dark space background color
+scene.background = new THREE.Color(0x090d16);
+
+// 1. Ambient Light for soft fill lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-directionalLight.position.set(5, 20, -20);
-scene.add(directionalLight);
-
-// Enable shadows
-renderer.shadowMap.enabled = true;
+// 2. Directional Light for overhead lane illumination and casting shadows
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.95);
+directionalLight.position.set(5, 25, -20);
 directionalLight.castShadow = true;
 
-function degrees_to_radians(degrees) {
-  var pi = Math.PI;
-  return degrees * (pi/180);
-}
+// Custom light target in the center of the lane (Z = -30)
+const lightTarget = new THREE.Object3D();
+lightTarget.position.set(0, 0, -30);
+scene.add(lightTarget);
+directionalLight.target = lightTarget;
 
-// Create bowling lane
-function createBowlingLane() {
-  // Lane surface - just a simple light maple wood surface
-  const laneGeometry = new THREE.BoxGeometry(3.5, 0.2, 60);
-  const laneMaterial = new THREE.MeshPhongMaterial({
-    color: 0xDEB887,  // Light maple wood color
-    shininess: 80
-  });
-  const lane = new THREE.Mesh(laneGeometry, laneMaterial);
-  lane.position.set(0, 0, -30);  // Lane extends from Z=0 (foul line) to Z=-60 (pin end)
-  lane.receiveShadow = true;
-  scene.add(lane);
+// Fine-tuned shadow camera frustum parameters to cover the whole lane (Z from Z = 15 to Z = -65)
+directionalLight.shadow.camera.left = -15;
+directionalLight.shadow.camera.right = 15;
+directionalLight.shadow.camera.top = 40;
+directionalLight.shadow.camera.bottom = -40;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 120;
 
-  // Note: Lane markings, gutters, approach area, pins, ball, and other elements
-  // have been removed. Students will need to implement these features.
-}
+// High-resolution shadow maps for sharp rendering
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.bias = -0.001; // Minimizes shadow acne artifacts
 
-// Create all elements
-createBowlingLane();
+scene.add(directionalLight);
 
-// Set camera position for bowler's perspective
-const cameraTranslate = new THREE.Matrix4();
-cameraTranslate.makeTranslation(0, 5, 12);
-camera.applyMatrix4(cameraTranslate);
+// Enable shadow mapping in renderer
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer, realistic shadow edges
 
-// Orbit controls
+// Create and position all 3D components
+createLane(scene);
+createApproach(scene);
+createMarkings(scene);
+const guttersAndBumpers = createGuttersAndBumpers(scene);
+createBallReturn(scene);
+createSeatingArea(scene);
+createBowlingBall(scene);
+setupPins(scene);
+createOverheadMonitor(scene);
+
+// Set initial camera position (bowler perspective)
+camera.position.set(0, 5, 12);
+
+// Orbit Controls setup
 const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, -30); // Base target is the center of the lane
+controls.update();
+
+// Setup smooth camera preset transitions (Keys '1' - '4')
+setupCameraPresets(camera, controls);
+
 let isOrbitEnabled = true;
 
-// Instructions display
-const instructionsElement = document.createElement('div');
-instructionsElement.style.position = 'absolute';
-instructionsElement.style.bottom = '20px';
-instructionsElement.style.left = '20px';
-instructionsElement.style.color = 'white';
-instructionsElement.style.fontSize = '16px';
-instructionsElement.style.fontFamily = 'Arial, sans-serif';
-instructionsElement.style.textAlign = 'left';
-instructionsElement.innerHTML = `
-  <h3>Bowling Alley Controls:</h3>
-  <p>O - Toggle orbit camera</p>
-`;
-document.body.appendChild(instructionsElement);
+// Apply initial preset from URL hash if specified
+const initialHash = window.location.hash;
+if (initialHash === '#preset=1') {
+  camera.position.set(0, 5, 12);
+  controls.target.set(0, 0, -30);
+  isOrbitEnabled = false;
+  controls.update();
+} else if (initialHash === '#preset=2') {
+  camera.position.set(0, 2.5, -53);
+  controls.target.set(0, 0.7, -58.5);
+  isOrbitEnabled = false;
+  controls.update();
+} else if (initialHash === '#preset=3') {
+  camera.position.set(0, 35, -25);
+  controls.target.set(0, 0, -25);
+  isOrbitEnabled = false;
+  controls.update();
+} else if (initialHash === '#preset=4') {
+  camera.position.set(15, 3, -25);
+  controls.target.set(0, 0, -25);
+  isOrbitEnabled = false;
+  controls.update();
+} else if (initialHash === '#preset=ball') {
+  camera.position.set(1.5, 1.2, 12);
+  controls.target.set(0, 0.55, 10);
+  isOrbitEnabled = false;
+  controls.update();
+}
 
-// Handle key events
+// Keyboard input handler
 function handleKeyDown(e) {
-  if (e.key === "o") {
+  const key = e.key.toLowerCase();
+  
+  if (key === "o") {
     isOrbitEnabled = !isOrbitEnabled;
+  } else if (["1", "2", "3", "4"].includes(e.key)) {
+    isOrbitEnabled = false; // Cameras presets lock orbit control inputs
+  } else if (key === "b") {
+    // Toggle the safety lane bumpers (Bonus Feature)
+    if (guttersAndBumpers && guttersAndBumpers.children) {
+      // Traverse to find the bumpers group
+      const bumpers = guttersAndBumpers.children.find(
+        child => child.userData && typeof child.userData.toggle === 'function'
+      );
+      if (bumpers) {
+        bumpers.userData.toggle();
+        console.log(`Bumpers state toggled. Deployed: ${bumpers.userData.deployed}`);
+      }
+    }
   }
 }
 
 document.addEventListener('keydown', handleKeyDown);
 
-// Animation function
+// Handle window resizing to keep scene responsive
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Render Animation loop
 function animate() {
   requestAnimationFrame(animate);
 
-  // Update controls
+  // Update controls if orbit mode is active
   controls.enabled = isOrbitEnabled;
   controls.update();
 
