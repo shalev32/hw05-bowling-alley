@@ -11,12 +11,9 @@ This repository contains the implementation of a 3D Bowling Alley scene built wi
 Make sure you have [Node.js](https://nodejs.org/) installed.
 
 ### Installation & Run Instructions
-1. Clone this repository to your local machine.
-2. Navigate to the project directory:
-   ```bash
-   cd Exercises/ex05
-   ```
-3. Install the dependencies:
+1. Extract the project archive to your local machine.
+2. Open a terminal and navigate to the root directory of this project (where `package.json` is located).
+3. Install the required dependencies:
    ```bash
    npm install
    ```
@@ -24,10 +21,7 @@ Make sure you have [Node.js](https://nodejs.org/) installed.
    ```bash
    node index.js
    ```
-5. Open your web browser and navigate to:
-   ```
-   http://localhost:8000
-   ```
+5. Open your web browser and navigate to `http://localhost:8000` to view the scene.
 
 ---
 
